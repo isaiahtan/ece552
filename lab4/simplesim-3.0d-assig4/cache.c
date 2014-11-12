@@ -572,21 +572,35 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   }
 
   // Case 2
-  size_t new_stride = addr - cp->rpt[index].prev_addr;
+  md_addr_t prev_addr = cp->rpt[index].prev_addr;
+  size_t new_stride = abs(addr - prev_addr);
+  int negative_stride = (prev_addr > addr);
   size_t old_stride = cp->rpt[index].stride;
+  int stride_equal = old_stride == new_stride;
   enum rpt_state old_state = cp->rpt[index].state;
-  enum rpt_state new_state = next_state(old_state, new_stride == old_stride);
 
-  cp->rpt[index].state = new_state;
+  // Update state
+  cp->rpt[index].state = next_state(old_state, stride_equal);
 
-  if (update_stride(old_state, new_stride==old_stride)) {
+  // Update stride
+  if (update_stride(old_state, stride_equal)) {
     // should update stride
     cp->rpt[index].stride = new_stride;
+    cp->rpt[index].negative_stride = negative_stride;
   }
 
-  if (new_state != NoPred) {
+  // Update prev addr
+  cp->rpt[index].prev_addr = addr;
+
+  if (cp->rpt[index].state != NoPred) {
     // Prefetch
-    cache_prefetch_addr(cp, addr+cp->rpt[index].stride);
+    md_addr_t prefetch_addr;
+    if (cp->rpt[index].negative_stride) {
+      prefetch_addr = addr - cp->rpt[index].stride;
+    } else {
+      prefetch_addr = addr + cp->rpt[index].stride;
+    }
+    cache_prefetch_addr(cp, prefetch_addr);
   }
   return;
 }

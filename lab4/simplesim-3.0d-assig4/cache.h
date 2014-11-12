@@ -158,6 +158,7 @@ struct rpt_entry {
    md_addr_t tag;
    md_addr_t prev_addr;
    size_t stride;
+   int negative_stride;
    enum rpt_state state;
 };
 
