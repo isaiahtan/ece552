@@ -554,7 +554,7 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int rpt_size = cp->prefetch_type;
   assert(cp->rpt != NULL);
-  assert(rpt_size & (rpt_size-1) == 0);
+  assert(!(rpt_size & (rpt_size-1)));
 
   // Get the index and tag for the current PC
   // TODO index might be wrong
