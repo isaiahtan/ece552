@@ -557,9 +557,10 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   assert(!(rpt_size & (rpt_size-1)));
 
   // Get the index and tag for the current PC
-  // TODO index might be wrong
-  size_t index = get_PC() & (rpt_size-1);
-  md_addr_t tag = get_PC() >> log_base2(rpt_size);
+  // Instruction bits are always zero.
+  int index_offset = log_base2(sizeof(md_inst_t));
+  size_t index = (get_PC() >> index_offset) & (rpt_size-1);
+  md_addr_t tag = get_PC() >> (log_base2(rpt_size)+index_offset);
 
   // Check if the current PC has an entry
   if (cp->rpt[index].tag != tag) {
@@ -567,6 +568,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
     cp->rpt[index].tag = tag;
     cp->rpt[index].prev_addr = addr;
     cp->rpt[index].stride = 0;
+    cp->rpt[index].negative_stride = 0;
     cp->rpt[index].state = Init;
     return;
   }
