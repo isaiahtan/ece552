@@ -529,7 +529,7 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 void cache_prefetch_addr(struct cache_t *cp, md_addr_t addr){
 	md_addr_t set = CACHE_SET(cp, addr);
 	md_addr_t tag = CACHE_TAG(cp, addr);
-	
+
 	md_addr_t prefetch_addr = CACHE_MK_BADDR(cp, tag, set);
 
 	if (cache_probe(cp, prefetch_addr))
@@ -557,12 +557,14 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   assert(rpt_size & (rpt_size-1) == 0);
 
   // Get the index and tag for the current PC
+  // TODO index might be wrong
   size_t index = get_PC() & (rpt_size-1);
   md_addr_t tag = get_PC() >> log_base2(rpt_size);
 
   // Check if the current PC has an entry
   if (cp->rpt[index].tag != tag) {
     // No corresponding entry
+    cp->rpt[index].tag = tag;
     cp->rpt[index].prev_addr = addr;
     cp->rpt[index].stride = 0;
     cp->rpt[index].state = Init;
@@ -584,7 +586,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
   if (new_state != NoPred) {
     // Prefetch
-
+    cache_prefetch_addr(cp, addr+cp->rpt[index].stride);
   }
   return;
 }
