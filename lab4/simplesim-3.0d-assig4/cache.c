@@ -575,10 +575,10 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
   // Case 2
   md_addr_t prev_addr = cp->rpt[index].prev_addr;
+  size_t old_stride = cp->rpt[index].stride;
   size_t new_stride = abs(addr - prev_addr);
   int negative_stride = (prev_addr > addr);
-  size_t old_stride = cp->rpt[index].stride;
-  int stride_equal = old_stride == new_stride;
+  int stride_equal = (old_stride == new_stride) && (cp->rpt[index].negative_stride == negative_stride);
   enum rpt_state old_state = cp->rpt[index].state;
 
   // Update state
