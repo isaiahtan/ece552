@@ -518,26 +518,16 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	md_addr_t * replaced_addr; // returned to us
-	md_addr_t prefetch_addr;
-	void * buffer_ptr;
-	int number_bytes_to_fetch;
-	tick_t time_of_access;
-	byte_t ** user_data_ptrs = (byte_t **)malloc(sizeof(byte_t *));
-
-	number_bytes_to_fetch = cp->bsize;
-	prefetch_addr = (addr & ~(number_bytes_to_fetch - 1)) + number_bytes_to_fetch;
+	md_addr_t set = CACHE_SET(cp, addr + cp->bsize);
+	md_addr_t tag = CACHE_TAG(cp, addr + cp->bsize);
 	
-	if (cache_probe(cp, prefetch_addr)){
-		free (user_data_ptrs);
+	md_addr_t prefetch_addr = CACHE_MK_BADDR(cp, tag, set);
+
+	if (cache_probe(cp, prefetch_addr))
 		return;
-	}
 
-	cache_access(cp, Read, prefetch_addr, buffer_ptr,
-	     number_bytes_to_fetch, time_of_access,
-	     user_data_ptrs, NULL, 1);
-
-	free (user_data_ptrs);
+	cache_access(cp, Read, prefetch_addr, NULL,
+	     cp->bsize, NULL, NULL, NULL, 1);
 }
 
 /* Open Ended Prefetcher */
