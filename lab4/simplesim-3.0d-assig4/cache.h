@@ -157,7 +157,7 @@ enum rpt_state {
 struct rpt_entry {
    md_addr_t tag;
    md_addr_t prev_addr;
-   md_addr_t stride;
+   size_t stride;
    enum rpt_state state;
 };
 

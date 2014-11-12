@@ -139,6 +139,16 @@
 /* bound sqword_t/dfloat_t to positive int */
 #define BOUND_POS(N)		((int)(MIN(MAX(0, (N)), 2147483647)))
 
+md_addr_t get_PC();
+
+
+/* ECE552 Lab4 BEGIN CODE */
+// function declarations
+enum rpt_state next_state(enum rpt_state cur_state, int stride_equal);
+int update_stride(enum rpt_state cur_state, int stride_equal);
+/* ECE552 Lab4 END CODE */
+
+
 /* unlink BLK from the hash table bucket chain in SET */
 static void
 unlink_htab_ent(struct cache_t *cp,		/* cache to update */
@@ -542,7 +552,99 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Stride Prefetcher */
 void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	;
+  int rpt_size = cp->prefetch_type;
+  assert(cp->rpt != NULL);
+  assert(rpt_size & (rpt_size-1) == 0);
+
+  // Get the index and tag for the current PC
+  size_t index = get_PC() & (rpt_size-1);
+  md_addr_t tag = get_PC() >> log_base2(rpt_size);
+
+  // Check if the current PC has an entry
+  if (cp->rpt[index].tag != tag) {
+    // No corresponding entry
+    cp->rpt[index].prev_addr = addr;
+    cp->rpt[index].stride = 0;
+    cp->rpt[index].state = Init;
+    return;
+  }
+
+  // Case 2
+  size_t new_stride = addr - cp->rpt[index].prev_addr;
+  size_t old_stride = cp->rpt[index].stride;
+  enum rpt_state old_state = cp->rpt[index].state;
+  enum rpt_state new_state = next_state(old_state, new_stride == old_stride);
+
+  cp->rpt[index].state = new_state;
+
+  if (update_stride(old_state, new_stride==old_stride)) {
+    // should update stride
+    cp->rpt[index].stride = new_stride;
+  }
+
+  if (new_state != NoPred) {
+    // Prefetch
+
+  }
+  return;
+}
+
+enum rpt_state next_state(enum rpt_state cur_state, int stride_equal) {
+  switch (cur_state) {
+    case Init:
+      if (stride_equal) {
+        return Steady;
+      } else {
+        return Transient;
+      }
+      break;
+
+    case Steady:
+      if (stride_equal) {
+        return Steady;
+      } else {
+        return Init;
+      }
+      break;
+
+    case Transient:
+      if (stride_equal) {
+        return Steady;
+      } else {
+        return NoPred;
+      }
+      break;
+
+    case NoPred:
+      if (stride_equal) {
+        return Transient;
+      } else {
+        return NoPred;
+      }
+      break;
+
+    default:
+      fatal("Invalid RPT state");
+      break;
+  };
+}
+
+int update_stride(enum rpt_state cur_state, int stride_equal) {
+  int update = 0;
+  switch (cur_state) {
+    case Init:
+    case Transient:
+    case NoPred:
+      return !stride_equal;
+      break;
+
+    case Steady:
+      return 0;
+
+    default:
+      fatal("Invalid RPT state");
+      break;
+  };
 }
 
 
@@ -569,7 +671,6 @@ void generate_prefetch(struct cache_t *cp, md_addr_t addr) {
 
 }
 
-md_addr_t get_PC();
 
 /* print cache stats */
 void
