@@ -517,6 +517,10 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 	number_bytes_to_fetch = cp->bsize;
 	prefetch_addr = (addr & ~(number_bytes_to_fetch - 1)) + number_bytes_to_fetch;
 	
+	if (cache_probe(cp, prefetch_addr)){
+		free (user_data_ptrs);
+		return;
+	}
 
 	cache_access(cp, Read, prefetch_addr, buffer_ptr, 
 	     number_bytes_to_fetch, time_of_access,
