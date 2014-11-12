@@ -512,7 +512,7 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 	void * buffer_ptr;
 	int number_bytes_to_fetch;
 	tick_t time_of_access;
-	byte_t ** user_data_ptrs;
+	byte_t ** user_data_ptrs = (byte_t **)malloc(sizeof(byte_t *));
 
 	number_bytes_to_fetch = cp->bsize;
 	prefetch_addr = (addr & ~(number_bytes_to_fetch - 1)) + number_bytes_to_fetch;
@@ -521,6 +521,8 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 	cache_access(cp, Read, prefetch_addr, buffer_ptr, 
 	     number_bytes_to_fetch, time_of_access,
 	     user_data_ptrs, NULL, 1);
+
+	free (user_data_ptrs);
 }
 
 /* Open Ended Prefetcher */
