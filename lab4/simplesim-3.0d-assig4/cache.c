@@ -516,10 +516,9 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 
 }
 
-/* Next Line Prefetcher */
-void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	md_addr_t set = CACHE_SET(cp, addr + cp->bsize);
-	md_addr_t tag = CACHE_TAG(cp, addr + cp->bsize);
+void cache_prefetch_addr(struct cache_t *cp, md_addr_t addr){
+	md_addr_t set = CACHE_SET(cp, addr);
+	md_addr_t tag = CACHE_TAG(cp, addr);
 	
 	md_addr_t prefetch_addr = CACHE_MK_BADDR(cp, tag, set);
 
@@ -528,6 +527,12 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 	cache_access(cp, Read, prefetch_addr, NULL,
 	     cp->bsize, NULL, NULL, NULL, 1);
+}
+
+
+/* Next Line Prefetcher */
+void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
+	cache_prefetch_addr(cp, addr+cp->bsize);
 }
 
 /* Open Ended Prefetcher */
