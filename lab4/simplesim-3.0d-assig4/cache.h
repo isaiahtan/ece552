@@ -162,6 +162,13 @@ struct rpt_entry {
    enum rpt_state state;
 };
 
+struct queue_entry {
+   md_addr_t addr;
+   md_addr_t next_addr;
+   struct queue_entry *next;
+   struct queue_entry *prev;
+}
+
 /* ECE552 Lab4 - END CODE */
 
 /* cache definition */
@@ -240,6 +247,7 @@ struct cache_t
   /* ECE552 Lab4 BEGIN CODE */
   // The RPT table
   struct rpt_entry *rpt;
+  struct q_entry *addr_queue;
   /* ECE552 Lab4 END CODE */
 
   /* NOTE: this is a variable-size tail array, this must be the LAST field

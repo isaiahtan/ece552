@@ -143,9 +143,12 @@ md_addr_t get_PC();
 
 
 /* ECE552 Lab4 BEGIN CODE */
+#define DEFAULT_RPT_SIZE 16
+#define QUEUE_SIZE (1 << 10)
 // function declarations
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal);
 int update_stride(enum rpt_state cur_state, int stride_equal);
+int stride_helper(struct cache_t *cp, md_addr_t addr);
 /* ECE552 Lab4 END CODE */
 
 
@@ -372,7 +375,9 @@ cache_create(char *name,		/* name of the cache */
 
   /* ECE552 Lab4 BEGIN CODE */
   if (prefetch_type > 2) {
-    cp->rpt = calloc(prefetch_type, sizeof(struct rpt_entry));
+    // Prefetch type 2 means open-ended prefetcher
+    int rpt_size = prefetch_type == 2 ? DEFAULT_RPT_SIZE : prefetch_type;
+    cp->rpt = calloc(rpt_size, sizeof(struct rpt_entry));
     if (!cp->rpt)
       fatal("out of virtual memory");
   } else {
@@ -547,7 +552,7 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	;
+  // TODO: use the stride helper
 }
 
 /* Stride Prefetcher */
@@ -560,17 +565,52 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   // Instruction bits are always zero.
   int index_offset = log_base2(sizeof(md_inst_t));
   size_t index = (get_PC() >> index_offset) & (rpt_size-1);
+
+  int rpt_has_entry = stride_helper(cp, addr);
+
+  if (rpt_has_entry) {
+    // TODO: only prefetch on Steady
+    if (cp->rpt[index].state != NoPred) {
+      // Prefetch
+      md_addr_t prefetch_addr;
+      if (cp->rpt[index].negative_stride) {
+        prefetch_addr = addr - cp->rpt[index].stride;
+      } else {
+        prefetch_addr = addr + cp->rpt[index].stride;
+      }
+      cache_prefetch_addr(cp, prefetch_addr);
+    }
+
+  } else {
+    // TODO: do the queue
+
+  }
+
+  return;
+}
+
+int stride_helper(struct cache_t *cp, md_addr_t addr) {
+  // Returns 1 if there's an entry in RPT
+  int rpt_size = cp->prefetch_type;
+  assert(cp->rpt != NULL);
+  assert(!(rpt_size & (rpt_size-1)));
+
+  // Get the index and tag for the current PC
+  // Instruction bits are always zero.
+  int index_offset = log_base2(sizeof(md_inst_t));
+  size_t index = (get_PC() >> index_offset) & (rpt_size-1);
   md_addr_t tag = get_PC() >> (log_base2(rpt_size)+index_offset);
 
   // Check if the current PC has an entry
   if (cp->rpt[index].tag != tag) {
+    // Case 1
     // No corresponding entry
     cp->rpt[index].tag = tag;
     cp->rpt[index].prev_addr = addr;
     cp->rpt[index].stride = 0;
     cp->rpt[index].negative_stride = 0;
     cp->rpt[index].state = Init;
-    return;
+    return 0;
   }
 
   // Case 2
@@ -594,18 +634,9 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   // Update prev addr
   cp->rpt[index].prev_addr = addr;
 
-  if (cp->rpt[index].state != NoPred) {
-    // Prefetch
-    md_addr_t prefetch_addr;
-    if (cp->rpt[index].negative_stride) {
-      prefetch_addr = addr - cp->rpt[index].stride;
-    } else {
-      prefetch_addr = addr + cp->rpt[index].stride;
-    }
-    cache_prefetch_addr(cp, prefetch_addr);
-  }
-  return;
+  return 1;
 }
+
 
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal) {
   switch (cur_state) {
