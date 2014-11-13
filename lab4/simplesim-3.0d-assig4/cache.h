@@ -146,7 +146,7 @@ struct cache_set_t
 				   access to cache blocks */
 };
 
-/* ECE552 Lab4 - BEGIN CODE */
+/* ECE552 Assignment 4 - BEGIN CODE */
 enum rpt_state {
    Init,
    Steady,
@@ -165,11 +165,11 @@ struct rpt_entry {
 struct queue_entry {
    md_addr_t addr;
    md_addr_t next_addr;
+   int valid; // if previously initialized or not
    struct queue_entry *next;
-   struct queue_entry *prev;
-}
+};
 
-/* ECE552 Lab4 - END CODE */
+/* ECE552 Assignment 4 - END CODE */
 
 /* cache definition */
 struct cache_t
@@ -244,11 +244,12 @@ struct cache_t
   /* data blocks */
   byte_t *data;			/* pointer to data blocks allocation */
 
-  /* ECE552 Lab4 BEGIN CODE */
+  /* ECE552 Assignment 4 - BEGIN CODE */
   // The RPT table
   struct rpt_entry *rpt;
-  struct q_entry *addr_queue;
-  /* ECE552 Lab4 END CODE */
+  struct queue_entry *addr_queue; // open ended
+  int num_queue_entries; // track items in queue
+  /* ECE552 Assignment 4 - END CODE */
 
   /* NOTE: this is a variable-size tail array, this must be the LAST field
      defined in this structure! */

@@ -142,14 +142,15 @@
 md_addr_t get_PC();
 
 
-/* ECE552 Lab4 BEGIN CODE */
+/* ECE552 Assignment 4 - BEGIN CODE */
+// open-end arguments
 #define DEFAULT_RPT_SIZE 16
-#define QUEUE_SIZE (1 << 10)
+#define QUEUE_SIZE (1 << 6)
 // function declarations
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal);
 int update_stride(enum rpt_state cur_state, int stride_equal);
 int stride_helper(struct cache_t *cp, md_addr_t addr);
-/* ECE552 Lab4 END CODE */
+/* ECE552 Assignment 4 - END CODE */
 
 
 /* unlink BLK from the hash table bucket chain in SET */
@@ -373,8 +374,8 @@ cache_create(char *name,		/* name of the cache */
   if (!cp->data)
     fatal("out of virtual memory");
 
-  /* ECE552 Lab4 BEGIN CODE */
-  if (prefetch_type > 2) {
+  /* ECE552 Assignment 4 - BEGIN CODE */
+  if (prefetch_type >= 2) {
     // Prefetch type 2 means open-ended prefetcher
     int rpt_size = prefetch_type == 2 ? DEFAULT_RPT_SIZE : prefetch_type;
     cp->rpt = calloc(rpt_size, sizeof(struct rpt_entry));
@@ -383,7 +384,7 @@ cache_create(char *name,		/* name of the cache */
   } else {
     cp->rpt = NULL;
   }
-  /* ECE552 Lab4 BEGIN CODE */
+  /* ECE552 Assignment 4 - BEGIN CODE */
 
   /* slice up the data blocks */
   for (bindex=0,i=0; i<nsets; i++)
@@ -552,7 +553,88 @@ void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-  // TODO: use the stride helper
+	int rpt_size = DEFAULT_RPT_SIZE;
+	assert(!(rpt_size & (rpt_size-1)));
+
+	// used for updating queue. find node of current addr
+	struct queue_entry * current_node = NULL; 
+	struct queue_entry * prev_node = cp->addr_queue;
+	if (prev_node != NULL){
+		// check first in list
+		if (prev_node->addr == addr){
+			current_node = prev_node;
+		} else {
+			// iterate list of threads
+			current_node = prev_node->next;
+			while (current_node != NULL && current_node->addr != addr){
+				if (current_node->addr != addr){
+					prev_node = current_node;
+					current_node = current_node->next;
+				}
+			}
+		}
+	}
+	
+	// Get the index and tag for the current PC
+	// Instruction bits are always zero.
+	int index_offset = log_base2(sizeof(md_inst_t));
+	size_t index = (get_PC() >> index_offset) & (rpt_size-1);
+
+	int rpt_has_entry = stride_helper(cp, addr);
+	
+	if (rpt_has_entry && cp->rpt[index].state == Steady) {
+
+		// Prefetch
+		md_addr_t prefetch_addr;
+		if (cp->rpt[index].negative_stride) {
+			prefetch_addr = addr - cp->rpt[index].stride;
+		} else {
+			prefetch_addr = addr + cp->rpt[index].stride;
+		}
+		cache_prefetch_addr(cp, prefetch_addr);
+	} else {
+		// cache using queue of history.
+		if (current_node != NULL && current_node->valid){
+			md_addr_t prefetch_addr = current_node->next_addr;				
+			cache_prefetch_addr(cp, prefetch_addr);
+		}
+	}
+	
+	
+	// update prediction of last recent addr. for the queue
+	if (cp->addr_queue != NULL){
+		cp->addr_queue->next_addr = addr; 
+		cp->addr_queue->valid = 1;
+	}
+	
+	// update queue
+	if (current_node == NULL){ // node not found, or list is empty
+		// create new node
+		current_node = calloc(1, sizeof(struct queue_entry)); // created in invalid state
+		cp->num_queue_entries ++;
+	} else {
+		if (current_node != prev_node){
+			// pop node from queue, if not the first node
+			prev_node->next = current_node->next;
+		}
+	}
+	
+	// push node (making it MRU)
+	current_node->next = cp->addr_queue;
+	cp->addr_queue = current_node;
+	
+	// remove LRU if necessary
+	if (cp->num_queue_entries > QUEUE_SIZE){
+		prev_node = current_node; // currently the head
+		current_node = current_node->next;
+		while (current_node != NULL && current_node->next !=NULL){
+			prev_node = current_node;
+			current_node = current_node->next;
+		}
+		prev_node->next = NULL;
+		free(current_node);
+		cp->num_queue_entries --;
+	}
 }
 
 /* Stride Prefetcher */
@@ -580,11 +662,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
       }
       cache_prefetch_addr(cp, prefetch_addr);
     }
-
-  } else {
-    // TODO: do the queue
-
-  }
+  } 
 
   return;
 }
@@ -592,6 +670,10 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
 int stride_helper(struct cache_t *cp, md_addr_t addr) {
   // Returns 1 if there's an entry in RPT
   int rpt_size = cp->prefetch_type;
+  if (cp->prefetch_type == 2){
+	rpt_size = DEFAULT_RPT_SIZE;
+  }
+  
   assert(cp->rpt != NULL);
   assert(!(rpt_size & (rpt_size-1)));
 
