@@ -4,23 +4,17 @@ int main(int argc, char *argv[]) {
 
 	// stride is 64*4 blks in cache, 64B per blk
 	// 16 RPT entries
+	int next_access = atoi(argv[1]);
 
-	int array_size = 100000;
+	int array_size = 100000 * next_access;
 	char array [array_size];
-	int i, j;
+	int i;
 
-	int upper_bound = atoi(argv[1]);
-
-
-	for (j = 0; j < upper_bound; j++){
-		for (i = 0; i < array_size/2; i+=64){ // skip over blk
-			// test 2 different strides (2 RPT entries)
-			array[i] ++;
-			array[i + array_size/2] ++;
-		}
+	// results should get near perfect miss rate.
+	// no matter the stride size
+	for (i = 0; i < array_size; i+=next_access){ // skip over blk
+		array[i] ++; // stride size of next_access
 	}
-
-
 
 	return 0;
 }
