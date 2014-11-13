@@ -144,8 +144,8 @@ md_addr_t get_PC();
 
 /* ECE552 Assignment 4 - BEGIN CODE */
 // open-end arguments
-#define DEFAULT_RPT_SIZE 16
-#define QUEUE_SIZE (1 << 6)
+#define DEFAULT_RPT_SIZE 128
+#define QUEUE_SIZE (1 << 10)
 // function declarations
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal);
 int update_stride(enum rpt_state cur_state, int stride_equal);
