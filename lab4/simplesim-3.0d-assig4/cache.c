@@ -145,7 +145,7 @@ md_addr_t get_PC();
 /* ECE552 Assignment 4 - BEGIN CODE */
 // open-end arguments
 #define DEFAULT_RPT_SIZE 128
-#define QUEUE_SIZE (1 << 10)
+#define QUEUE_SIZE (1 << 8)
 // function declarations
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal);
 int update_stride(enum rpt_state cur_state, int stride_equal);
@@ -532,15 +532,18 @@ cache_reg_stats(struct cache_t *cp,	/* cache instance */
 
 }
 
-void cache_prefetch_addr(struct cache_t *cp, md_addr_t addr){
+void cache_prefetch_addr(struct cache_t *cp, md_addr_t addr){ // prefetch block with specified address
+	// macros get set, tag, address
 	md_addr_t set = CACHE_SET(cp, addr);
 	md_addr_t tag = CACHE_TAG(cp, addr);
 
 	md_addr_t prefetch_addr = CACHE_MK_BADDR(cp, tag, set);
 
+	// cache only if the block is not in the cache
 	if (cache_probe(cp, prefetch_addr))
 		return;
 
+	// cache block
 	cache_access(cp, Read, prefetch_addr, NULL,
 	     cp->bsize, NULL, NULL, NULL, 1);
 }
@@ -548,15 +551,15 @@ void cache_prefetch_addr(struct cache_t *cp, md_addr_t addr){
 
 /* Next Line Prefetcher */
 void next_line_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	cache_prefetch_addr(cp, addr+cp->bsize);
+	cache_prefetch_addr(cp, addr+cp->bsize); // prefetched with addr + blk size (get next block)
 }
 
 /* Open Ended Prefetcher */
 void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
-	int rpt_size = DEFAULT_RPT_SIZE;
+	int rpt_size = DEFAULT_RPT_SIZE; // default RPT = 128
 	assert(!(rpt_size & (rpt_size-1)));
 
-	// used for updating queue. find node of current addr
+	// used for updating queue. find node containing the current addr
 	struct queue_entry * current_node = NULL; 
 	struct queue_entry * prev_node = cp->addr_queue;
 	if (prev_node != NULL){
@@ -580,22 +583,27 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 	int index_offset = log_base2(sizeof(md_inst_t));
 	size_t index = (get_PC() >> index_offset) & (rpt_size-1);
 
+	// verify stride entry exists. helper function also updates RPT entry
 	int rpt_has_entry = stride_helper(cp, addr);
 	
 	if (rpt_has_entry && cp->rpt[index].state == Steady) {
 
 		// Prefetch
 		md_addr_t prefetch_addr;
+		// calculate address based on stride (if negative)
 		if (cp->rpt[index].negative_stride) {
 			prefetch_addr = addr - cp->rpt[index].stride;
 		} else {
 			prefetch_addr = addr + cp->rpt[index].stride;
 		}
+		// cache block
 		cache_prefetch_addr(cp, prefetch_addr);
 	} else {
 		// cache using queue of history.
 		if (current_node != NULL && current_node->valid){
-			md_addr_t prefetch_addr = current_node->next_addr;				
+			// current node contains mapping of current addr to the possible next address
+			md_addr_t prefetch_addr = current_node->next_addr;	
+			// cache block
 			cache_prefetch_addr(cp, prefetch_addr);
 		}
 	}
@@ -603,15 +611,17 @@ void open_ended_prefetcher(struct cache_t *cp, md_addr_t addr) {
 	
 	// update prediction of last recent addr. for the queue
 	if (cp->addr_queue != NULL){
+		// if queue is not empty, update the node containing the previous memory access, to point to current address
+		// head of queue contains the node of the previous memory address 
 		cp->addr_queue->next_addr = addr; 
-		cp->addr_queue->valid = 1;
+		cp->addr_queue->valid = 1; // make node valid for predictions
 	}
 	
 	// update queue
 	if (current_node == NULL){ // node not found, or list is empty
 		// create new node
 		current_node = calloc(1, sizeof(struct queue_entry)); // created in invalid state
-		cp->num_queue_entries ++;
+		cp->num_queue_entries ++; // track number of entries
 	} else {
 		if (current_node != prev_node){
 			// pop node from queue, if not the first node
@@ -648,6 +658,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
   int index_offset = log_base2(sizeof(md_inst_t));
   size_t index = (get_PC() >> index_offset) & (rpt_size-1);
 
+  // verify stride entry exists. helper function also updates RPT entry
   int rpt_has_entry = stride_helper(cp, addr);
 
   if (rpt_has_entry) {
@@ -655,11 +666,13 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
     if (cp->rpt[index].state != NoPred) {
       // Prefetch
       md_addr_t prefetch_addr;
+		// calculate address based on stride (if negative)
       if (cp->rpt[index].negative_stride) {
         prefetch_addr = addr - cp->rpt[index].stride;
       } else {
         prefetch_addr = addr + cp->rpt[index].stride;
       }
+	  // cache block
       cache_prefetch_addr(cp, prefetch_addr);
     }
   } 
@@ -670,7 +683,7 @@ void stride_prefetcher(struct cache_t *cp, md_addr_t addr) {
 int stride_helper(struct cache_t *cp, md_addr_t addr) {
   // Returns 1 if there's an entry in RPT
   int rpt_size = cp->prefetch_type;
-  if (cp->prefetch_type == 2){
+  if (cp->prefetch_type == 2){ // if open ended, use correct RPT size
 	rpt_size = DEFAULT_RPT_SIZE;
   }
   
@@ -719,7 +732,7 @@ int stride_helper(struct cache_t *cp, md_addr_t addr) {
   return 1;
 }
 
-
+// returns the next state, given current state, and if new stride matches old (stride_equal == 1)
 enum rpt_state next_state(enum rpt_state cur_state, int stride_equal) {
   switch (cur_state) {
     case Init:
@@ -760,15 +773,18 @@ enum rpt_state next_state(enum rpt_state cur_state, int stride_equal) {
   };
 }
 
+// return if stride should be updated.
 int update_stride(enum rpt_state cur_state, int stride_equal) {
   int update = 0;
   switch (cur_state) {
+    // always update stride if changed
     case Init:
     case Transient:
     case NoPred:
       return !stride_equal;
       break;
 
+	// don't update stride if in steady state, no matter the outcome.
     case Steady:
       return 0;
 
