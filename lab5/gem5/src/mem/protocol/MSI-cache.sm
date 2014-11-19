@@ -615,46 +615,41 @@ machine(L1Cache, "MSI L1 Cache")
   /* ECE552: Complete this section here */
   /* transition(fromState, {events}, toState) */
 
-  /**
-   * I State
-   */
-  transition(I, Load, IS_D) {
-    ;
+  transition(I, {Load, Ifetch}, IS_D) {
+    i_allocateL1CacheBlock;
+    as_issueGetS;
+    p_profileMiss;
+    v_allocateTBE;
+    m_popMandatoryQueue;
   }
 
   transition(I, Store, IM_AD) {
-    ;
+    i_allocateL1CacheBlock;
+    am_issueGetM;
+    p_profileMiss;
+    v_allocateTBE;
+    m_popMandatoryQueue;
   }
 
-  transition(IS_D, {Load, Store, Inv, Replacement}) {
-    // Stall
-  }
 
   transition(IS_D, {Data_from_Dir_No_Acks, Data_from_Owner}, S) {
     ;
   }
 
 
-  transition(IM_AD, {Load, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
-    // Stall
-  }
-
   transition(IM_AD, Inv_Ack) {
     // Ack
   }
 
   transition(IM_AD, Data_from_Dir_Ack_Cnt, IM_A) {
-    // TODO: might need Data_from_Dir_Ack_Cnt_Last
 
+    // TODO: might need Data_from_Dir_Ack_Cnt_Last
   }
 
   transition(IM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
 
   }
 
-  transition(IM_A, {Load, Store, Replacement, Fwd_GetS,  Fwd_GetM}) {
-    // Stall
-  }
 
   transition(IM_A, Inv_Ack) {
     // Ack
@@ -663,6 +658,7 @@ machine(L1Cache, "MSI L1 Cache")
   transition(IM_A, INV_Ack_all, M) {
 
   }
+
 
   transition(S, Store, SM_AD){
     // send GetM to Dir
@@ -678,6 +674,92 @@ machine(L1Cache, "MSI L1 Cache")
   }
 
 
- 
+  transition(SM_AD, Inv, IM_AD) {
+    // Send inv-ack to req
+  }
+
+  transition(SM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
+
+  }
+
+  transition(SM_AD, Data_from_Dir_Ack_Cnt, SM_A) {
+
+  }
+
+  transition(SM_AD, Inv_Ack) {
+    // Ack
+  }
+
+
+  transition(SM_A, Inv_Ack) {
+    // Ack
+  }
+
+  transition(SM_A, Inv_Ack_all, M) {
+
+  }
+
+
+  transition(M, Replacement, MI_A) {
+    // send putM+data to Dir
+  }
+
+  transition(M, Fwd_GetS, S) {
+    // send data to Req and Dir
+  }
+
+  transition(M, Fwd_GetM, I) {
+    // send data to Req
+  }
+
+
+  transition(MI_A, Fwd_GetS, SI_A) {
+    // send data to Req and Dir
+  }
+
+  transition(MI_A, Fwd_GetM, II_A) {
+    // send data to Req
+  }
+
+  transition({MI_A, SI_A, II_A}, WB_Ack, I) {
+
+  }
+
+
+  transition(SI_A, Inv, II_A) {
+
+  }
+
+
+  // Hits
+  transition({S, SM_AD, SM_A}, Load) {
+    // Hit
+  }
+
+  transition(M, {Load, Store}) {
+    // Hit
+  }
+
+
+  // Stalls
+  transition(IS_D, {Load, Store, Inv, Replacement}) {
+    // Stall
+    z_stall;
+  }
+
+  transition({IM_AD, IM_A}, {Load, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+    // Stall
+    z_stall;
+  }
+
+  transition({SM_A, SM_AD}, {Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+    // Stall
+    z_stall;
+  }
+
+  transition({MI_A, SI_A, II_A}, {Load, Store, Replacement}) {
+    // Stall
+    z_stall;
+  }
 
 }
