@@ -43,7 +43,8 @@ machine(L1Cache, "MSI L1 Cache")
     //=====================
 
     I, AccessPermission:Invalid, desc="Not Present/Invalid";
-
+    S, AccessPermission:Read_Only, desc="Shared data, stable state";
+    M, AccessPermission:Read_Write, desc="Modified data, state state";
     /* ECE552: Complete this section here */
    
     //========================
@@ -51,6 +52,17 @@ machine(L1Cache, "MSI L1 Cache")
     //========================
 
     /* ECE552: Complete this section here */
+    IS_D, AccessPermission:Busy, desc="Waiting for data, I->S";
+    IM_AD, AccessPermission:Busy, desc="Waiting for data/ack, I->M";
+    IM_A, AccessPermission:Busy, desc="Waiting for acknowledge from caches/dir, I->M";
+
+    MI_A, AccessPermission:Busy, desc="Waiting for acknowledge from dir, M->I";
+
+    SI_A, AccessPermission:Busy, desc="Waiting for acknowledge from dir, S->I";
+    SM_AD, AccessPermission:Busy, desc="Waiting for data/ack, S->M";
+    SM_A, AccessPermission:Busy, desc="Waiting for ack, S->M";
+    
+    II_A, AccessPermission:Busy, desc="Waiting for dir to ack";
 
   }
 

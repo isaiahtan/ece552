@@ -40,13 +40,15 @@ machine(Directory, "Directory protocol")
 
     I, AccessPermission:Invalid, desc="Not Present/Invalid";
     M, AccessPermission:Read_Write, desc="Modified";
-
+    S, AccessPermission:Read_Only, desc="Shared";
     /* ECE552: Complete this section here */
 
     //========================
     //ECE552: Transient States
     //========================
 
+    IS_D, AccessPermission:Busy, desc="Waiting for Data, I->S (waiting for memory)";
+    MS_D, AccessPermission:Busy, desc="Waiting for Data, M->S (waiting for cache)";
     /* ECE552: Complete this section here */
   }
 
