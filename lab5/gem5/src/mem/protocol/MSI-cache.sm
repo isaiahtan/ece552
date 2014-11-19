@@ -613,6 +613,46 @@ machine(L1Cache, "MSI L1 Cache")
   // =============================================================================
 
   /* ECE552: Complete this section here */
+  /* transition(fromState, {events}, toState) */
+
+  /**
+   * I State
+   */
+  transition(I, Load, IS_D) {
+    ;
+  }
+
+  transition(I, Store, IM_AD) {
+    ;
+  }
+
+  transition(IS_D, {Load, Store, Inv, Replacement}) {
+    // Stall
+  }
+
+  transition(IS_D, {Data_from_Dir_No_Acks, Data_from_Owner}, S) {
+    ;
+  }
+
+
+  transition(IM_AD, {Load, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+    // Stall
+  }
+
+  transition(IM_AD, Inv_Ack) {
+    // Ack
+  }
+
+  transition(IM_AD, Data_from_Dir_Ack_Cnt, IM_A) {
+
+  }
+
+  transition(IM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
+    // TODO: might need Data_from_Dir_Ack_Cnt_Last
+
+  }
+
+
  
 
 }
