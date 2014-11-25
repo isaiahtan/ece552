@@ -605,9 +605,8 @@ transition({S, MS_A}, PUTM_NotOwner){
 }
 
 // in the case where it's transitioning from M, another cache can become M, and call replace.
-transition(MS_D, PUTM_NotOwner, MS_A){
+transition(MS_D, PUTM_NotOwner){
 	pl_writeDataToDirectory; // write data to directory
-	lq_queueMemoryWBRequest; // request WB
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
 }
@@ -680,20 +679,9 @@ transition(MI_A, Memory_Ack, I){
 }
 
 // just send PUT_Ack to requester
-transition(M, {PUTS_Last, PUTS_NotLast, PUTM_NotOwner}){
+transition({I, M}, {PUTS_Last, PUTS_NotLast, PUTM_NotOwner}){
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue	
-}
-
-// receive old data from cache
-transition({S,M}, Data){
-	pr_popIncomingResponseQueue; // remove message from queue
-}
-
-// recieve data from cache, while in transcient
-transition(MS_A, Data){
-	pl2_writeDataToDirectory; // data to directory
-	pr_popIncomingResponseQueue; // remove message from queue
 }
 
 // stalls, in intermediate state, and another request is coming in
