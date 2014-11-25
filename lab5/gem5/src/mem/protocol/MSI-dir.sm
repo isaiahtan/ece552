@@ -50,7 +50,6 @@ machine(Directory, "Directory protocol")
     IS_D, AccessPermission:Busy, desc="Waiting for Data, I->S (waiting for memory)";
     IM_D, AccessPermission:Busy, desc="Waiting for Data, I->M (waiting for memory)";
 	
-	MI_D, AccessPermission:Busy, desc="Waiting for Data, M->I (waiting for cache)";
     MS_D, AccessPermission:Busy, desc="Waiting for Data, M->S (waiting for cache)";
     MS_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
     MI_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
@@ -637,24 +636,8 @@ transition({MS_D, MS_A}, {PUTS_NotLast, PUTM_NotOwner, PUTM_Owner}){
 }
 
 // last sharer invalidates
-transition(MS_A, PUTS_Last, MI_A){
-	kk_removeRequestSharer; // remove sharer from list
-	a_sendWriteBackAck; // send ack
-	i_popIncomingRequestQueue; // remove this message from queue
-}
-
-// last sharer invalidates
-transition(MS_D, PUTS_Last, MI_D){
-	kk_removeRequestSharer; // remove sharer from list
-	a_sendWriteBackAck; // send ack
-	i_popIncomingRequestQueue; // remove this message from queue
-}
-
-// waiting for data
-transition(MI_D, Data, MI_A){
-	lq2_queueMemoryWBRequest; // request WB
-	pl2_writeDataToDirectory; // data to directory
-	pr_popIncomingResponseQueue; // remove message from queue
+transition({MS_A, MS_D}, PUTS_Last){
+	z_stall; // wait for stable state before invalidating..
 }
 
 // in transition, get data from cache
@@ -702,7 +685,7 @@ transition({I, M}, {PUTS_Last, PUTS_NotLast, PUTM_NotOwner}){
 }
 
 // stalls, in intermediate state, and another request is coming in
-transition({IS_D, IM_D, MS_D, MS_A, MI_A, MI_D}, {GETM, GETS}){
+transition({IS_D, IM_D, MS_D, MS_A, MI_A}, {GETM, GETS}){
 	z_stall;
 }
 
