@@ -682,6 +682,7 @@ machine(L1Cache, "MSI L1 Cache")
   }
 
 
+
   transition(S, Store, SM_AD){
     // send GetM to Dir
     am_issueGetM;
@@ -807,12 +808,12 @@ machine(L1Cache, "MSI L1 Cache")
   
 
   // Hits
-  transition({S, SM_AD, SM_A}, {Load, Ifetch}) {
+  transition({S, M, SM_AD, SM_A}, {Load, Ifetch}) {
     r_load_hit;
     m_popMandatoryQueue;
   }
 
-  transition(M, {Load, Store}) {
+  transition(M, Store) {
     // Hit
     s_store_hit;
     m_popMandatoryQueue;
