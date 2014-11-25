@@ -613,6 +613,178 @@ machine(L1Cache, "MSI L1 Cache")
   // =============================================================================
 
   /* ECE552: Complete this section here */
- 
+  /* transition(fromState, {events}, toState) */
+
+  transition(I, {Load, Ifetch}, IS_D) {
+    i_allocateL1CacheBlock;
+    as_issueGetS;
+    p_profileMiss;
+    v_allocateTBE;
+    m_popMandatoryQueue;
+  }
+
+  transition(I, Store, IM_AD) {
+    i_allocateL1CacheBlock;
+    am_issueGetM;
+    p_profileMiss;
+    v_allocateTBE;
+    m_popMandatoryQueue;
+  }
+
+
+  transition(IS_D, {Data_from_Dir_No_Acks, Data_from_Owner}, S) {
+    u_writeDataToCache;
+    rx_load_hit;
+    w_deallocateTBE;
+    n_popResponseQueue;
+  }
+
+
+  transition(IM_AD, Inv_Ack) {
+    // Ack
+    q_updateAckCount;
+    n_popResponseQueue;
+  }
+
+  transition(IM_AD, Data_from_Dir_Ack_Cnt, IM_A) {
+    u_writeDataToCache;
+    q_updateAckCount;
+    n_popResponseQueue;
+  }
+
+  transition(IM_AD, Data_from_Dir_Ack_Cnt_Last, M) {
+    u_writeDataToCache;
+    q_updateAckCount;
+    sx_store_hit;
+    w_deallocateTBE;
+    n_popResponseQueue;
+  }
+
+  transition(IM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
+    u_writeDataToCache;
+    sx_store_hit;
+    w_deallocateTBE;
+    n_popResponseQueue;
+  }
+
+
+  transition(IM_A, Inv_Ack) {
+    // Ack
+    q_updateAckCount;
+    n_popResponseQueue;
+  }
+
+  transition(IM_A, Inv_Ack_all, M) {
+    q_updateAckCount;
+    sx_store_hit;
+    w_deallocateTBE;
+    n_popResponseQueue;
+  }
+
+
+  transition(S, Store, SM_AD){
+    // send GetM to Dir
+  }
+
+  transition(S, Replacement, SI_A) {
+    // Send putS to Dir
+
+  }
+
+  transition(S, Inv, I) {
+    // Send inv-ack to Req
+  }
+
+
+  transition(SM_AD, Inv, IM_AD) {
+    // Send inv-ack to req
+  }
+
+  transition(SM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
+
+  }
+
+  transition(SM_AD, Data_from_Dir_Ack_Cnt, SM_A) {
+
+  }
+
+  transition(SM_AD, Inv_Ack) {
+    // Ack
+    q_updateAckCount;
+    n_popResponseQueue;
+  }
+
+
+  transition(SM_A, Inv_Ack) {
+    // Ack
+    q_updateAckCount;
+    n_popResponseQueue;
+  }
+
+  transition(SM_A, Inv_Ack_all, M) {
+
+  }
+
+
+  transition(M, Replacement, MI_A) {
+    // send putM+data to Dir
+  }
+
+  transition(M, Fwd_GetS, S) {
+    // send data to Req and Dir
+  }
+
+  transition(M, Fwd_GetM, I) {
+    // send data to Req
+  }
+
+
+  transition(MI_A, Fwd_GetS, SI_A) {
+    // send data to Req and Dir
+  }
+
+  transition(MI_A, Fwd_GetM, II_A) {
+    // send data to Req
+  }
+
+  transition({MI_A, SI_A, II_A}, WB_Ack, I) {
+
+  }
+
+
+  transition(SI_A, Inv, II_A) {
+
+  }
+
+
+  // Hits
+  transition({S, SM_AD, SM_A}, {Load, Ifetch}) {
+    r_load_hit;
+    m_popMandatoryQueue;
+  }
+
+  transition(M, {Load, Store}) {
+    // Hit
+    s_store_hit;
+    m_popMandatoryQueue;
+  }
+
+
+  // Stalls
+  transition(IS_D, {Load, Store, Inv, Replacement}) {
+    z_stall;
+  }
+
+  transition({IM_AD, IM_A}, {Load, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+    z_stall;
+  }
+
+  transition({SM_A, SM_AD}, {Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+    z_stall;
+  }
+
+  transition({MI_A, SI_A, II_A}, {Load, Store, Replacement}) {
+    z_stall;
+  }
 
 }
