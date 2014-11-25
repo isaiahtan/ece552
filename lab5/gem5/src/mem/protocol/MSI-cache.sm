@@ -715,15 +715,23 @@ machine(L1Cache, "MSI L1 Cache")
   }
 
   transition(SM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
+    w_deallocateTBE;
     u_writeDataToCache;
     sx_store_hit;
-    w_deallocateTBE;
     n_popResponseQueue;
   }
 
   transition(SM_AD, Data_from_Dir_Ack_Cnt, SM_A) {
     q_updateAckCount;
     u_writeDataToCache;
+    n_popResponseQueue;
+  }
+
+  transition(SM_AD, Data_from_Dir_Ack_Cnt_Last, M) {
+    q_updateAckCount;
+    u_writeDataToCache;
+    w_deallocateTBE;
+    sx_store_hit;
     n_popResponseQueue;
   }
 
@@ -741,40 +749,62 @@ machine(L1Cache, "MSI L1 Cache")
   }
 
   transition(SM_A, Inv_Ack_all, M) {
-
+    q_updateAckCount;
+    w_deallocateTBE;
+    sx_store_hit;
+    n_popResponseQueue;
   }
 
 
   transition(M, Replacement, MI_A) {
     // send putM+data to Dir
+    bm_issuePUTM;
+    v_allocateTBE;
+    x_copyDataFromCacheToTBE;
   }
 
   transition(M, Fwd_GetS, S) {
     // send data to Req and Dir
+    e_sendDataFromCacheToRequestor;
+    de_sendDataFromCacheToDir;
+    o_popForwardedRequestQueue;
   }
 
   transition(M, Fwd_GetM, I) {
     // send data to Req
+    e_sendDataFromCacheToRequestor;
+    forward_eviction_to_cpu;
+    h_deallocateL1CacheBlock;
+    o_popForwardedRequestQueue;
   }
 
 
   transition(MI_A, Fwd_GetS, SI_A) {
     // send data to Req and Dir
+    ee_sendDataFromTBEToRequestor;
+    dee_sendDataFromTBEToDir;
+    o_popForwardedRequestQueue;
   }
 
   transition(MI_A, Fwd_GetM, II_A) {
     // send data to Req
+    ee_sendDataFromTBEToRequestor;
+    o_popForwardedRequestQueue;
   }
 
   transition({MI_A, SI_A, II_A}, WB_Ack, I) {
-
+    w_deallocateTBE;
+    forward_eviction_to_cpu;
+    h_deallocateL1CacheBlock;
+    o_popForwardedRequestQueue;
   }
 
 
   transition(SI_A, Inv, II_A) {
-
+    fi_sendInvAck;
+    o_popForwardedRequestQueue;
   }
-
+  
 
   // Hits
   transition({S, SM_AD, SM_A}, {Load, Ifetch}) {
