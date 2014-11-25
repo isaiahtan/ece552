@@ -48,7 +48,12 @@ machine(Directory, "Directory protocol")
     //========================
 
     IS_D, AccessPermission:Busy, desc="Waiting for Data, I->S (waiting for memory)";
+    IM_D, AccessPermission:Busy, desc="Waiting for Data, I->M (waiting for memory)";
+
     MS_D, AccessPermission:Busy, desc="Waiting for Data, M->S (waiting for cache)";
+    MS_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
+    MI_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
+
     /* ECE552: Complete this section here */
   }
 
@@ -539,5 +544,131 @@ getDirectoryEntry(address).Sharers);
 
   /* ECE552: Complete this section here */
 
+// invalid state, get data for shared. go to transition state
+transition(I, GETS, IS_D){
+	vv_allocateTBEFromRequestNet; // allocate buffer
+	ars2_addRequestorToSharers; // add to requester to sharer list
+	qf_queueMemoryFetchRequest; // request data from memory
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// receiving data from mem, send to requester
+transition(IS_D, Memory_Data, S){
+	w_deallocateTBE; // free buffer used
+	d_sendData; // send data to requester
+	qm_popMemQueue;	// remove the mem request
+}
+
+// new sharer
+transition(S, GETS){
+	ars2_addRequestorToSharers; // add to requester to sharer list
+	ds_sendSharedData; // send shared data
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// invalid state, get data for modified. go to transition state
+transition(I, GETM, IM_D){
+	vv_allocateTBEFromRequestNet; // allocate buffer
+	e_ownerIsRequestor; // requester is owner
+	qf_queueMemoryFetchRequest; // request data from memory
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// receiving data from mem, send to requester
+transition(IM_D, Memory_Data, M){
+	w_deallocateTBE; // free buffer used
+	d_sendData; // send data to requester
+	qm_popMemQueue;	// remove the mem request
+}
+
+// in shared, request to M.
+transition(S, GETM, M){
+	ds2_sendSharedData; // send data, with acknowledge counts
+	fwm_sendFwdInvToSharersMinusRequestor; // send inv message to all sharers but requester
+	cs_clearSharers; // clear sharers list
+	e_ownerIsRequestor; // requester is owner
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// in shared, remove from sharer
+transition({S, MS_D}, {PUTS_NotLast, PUTM_NotOwner}){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// in shared, remove from share
+transition(S, PUTS_Last, I){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
 
 }
+
+// in modified, another cache wants to modify
+transition(M, GETM){
+	f_forwardRequest; // forward request to current owner to send data.
+	e_ownerIsRequestor; // requester is owner
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// in modified, to shared. get data for writeback.
+transition(M, GETS, MS_D){
+	f_forwardRequest; // forward request to current owner to send data.
+	ars2_addRequestorToSharers; // make requester a sharer
+	aos_addOwnertoSharers; // make owner a sharer
+	c_clearOwner; // clear owner
+	vv_allocateTBEFromRequestNet; // allocate buffer
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// in transition state, get PUTS_Last (invalidate cache)
+transition(MS_D, PUTS_Last){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// in transition, get data from cache
+transition(MS_D, Data, MS_A){
+	lq2_queueMemoryWBRequest; // request WB
+	pl2_writeDataToDirectory; // data to directory
+	pr_popIncomingResponseQueue; // remove message from queue
+}
+
+// waiting for mem to finish WB
+transition(MS_A, Memory_Ack, S){
+	w_deallocateTBE; // free buffer
+	qm_popMemQueue; // remove message from queue
+}
+
+// cache wants to invalidate, data already sent
+transition(M, PUTM_Owner, MI_A){
+	lq_queueMemoryWBRequest; // request WB
+	pl_writeDataToDirectory; // write data to directory
+	c_clearOwner; // clear owner
+	vv_allocateTBEFromRequestNet; // allocate buffer
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// waiting for mem to finish WB
+transition(MI_A, Memory_Ack, I){
+	la_sendWriteBackAck; // send acknowledge that WB is done
+	w_deallocateTBE; // free buffer
+	qm_popMemQueue; // remove message from queue
+}
+
+// just send PUT_Ack to requester
+transition({I, M}, {PUTS_Last, PUTS_NotLast, PUTM_NotOwner}){
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue	
+}
+
+// stalls, in intermediate state, and another request is coming in
+transition({IS_D, IM_D, MS_D, MS_A, MI_A}, {GETM, GETS}){
+	z_stall;
+}
+
+
+}
+
