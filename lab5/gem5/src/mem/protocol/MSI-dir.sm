@@ -689,7 +689,7 @@ transition(MI_A, Memory_Ack, I){
 
 // if new owner, then invalidate from owner, followed by invalidate from old owner (slow)
 // in transition state, remove from sharer
-transition(MI_A, PUTM_NotOwner){
+transition(MI_A, {PUTM_NotOwner, PUTS_NotLast}){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
@@ -702,7 +702,7 @@ transition({I, M}, {PUTS_Last, PUTS_NotLast, PUTM_NotOwner}){
 }
 
 // stalls, in intermediate state, and another request is coming in
-transition({IS_D, IM_D, MS_D, MS_A, MI_A}, {GETM, GETS}){
+transition({IS_D, IM_D, MS_D, MS_A, MI_A, MI_D}, {GETM, GETS}){
 	z_stall;
 }
 
