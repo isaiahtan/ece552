@@ -49,7 +49,8 @@ machine(Directory, "Directory protocol")
 
     IS_D, AccessPermission:Busy, desc="Waiting for Data, I->S (waiting for memory)";
     IM_D, AccessPermission:Busy, desc="Waiting for Data, I->M (waiting for memory)";
-
+	
+	MI_D, AccessPermission:Busy, desc="Waiting for Data, M->I (waiting for cache)";
     MS_D, AccessPermission:Busy, desc="Waiting for Data, M->S (waiting for cache)";
     MS_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
     MI_A, AccessPermission:Busy, desc="Waiting from acknowledge from mem, due to writeback";
@@ -591,31 +592,18 @@ transition(S, GETM, M){
 }
 
 // in shared, remove from sharer
-transition({S, MS_D, MS_A}, {PUTS_NotLast}){
+transition(S, {PUTS_NotLast, PUTM_NotOwner}){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
 }
-
+/* 
 // remove from sharer
-transition({S, MS_A}, PUTM_NotOwner){
+transition(MI_A, PUTM_NotOwner){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
-}
-
-// in the case where it's transitioning from M, another cache can become M, and call replace.
-transition(MS_D, PUTM_NotOwner){
-	pl_writeDataToDirectory; // write data to directory
-	a_sendWriteBackAck; // send ack
-	i_popIncomingRequestQueue; // remove this message from queue
-}
-
-transition(MI_A, PUTM_NotOwner){
-	pl_writeDataToDirectory; // write data to directory
-	a_sendWriteBackAck; // send ack
-	i_popIncomingRequestQueue; // remove this message from queue
-}
+} */
 
 // in shared, remove from share
 transition(S, PUTS_Last, I){
@@ -637,16 +625,36 @@ transition(M, GETS, MS_D){
 	f_forwardRequest; // forward request to current owner to send data.
 	ars2_addRequestorToSharers; // make requester a sharer
 	aos_addOwnertoSharers; // make owner a sharer
-	c_clearOwner; // clear owner
 	vv_allocateTBEFromRequestNet; // allocate buffer
 	i_popIncomingRequestQueue; // remove this message from queue
 }
 
-// in transition state, get PUTS_Last (invalidate cache)
-transition({MS_D, MS_A}, PUTS_Last){
+// in transition state, remove from sharer
+transition({MS_D, MS_A}, {PUTS_NotLast, PUTM_NotOwner, PUTM_Owner}){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// last sharer invalidates
+transition(MS_A, PUTS_Last, MI_A){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// last sharer invalidates
+transition(MS_D, PUTS_Last, MI_D){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
+}
+
+// waiting for data
+transition(MI_D, Data, MI_A){
+	lq2_queueMemoryWBRequest; // request WB
+	pl2_writeDataToDirectory; // data to directory
+	pr_popIncomingResponseQueue; // remove message from queue
 }
 
 // in transition, get data from cache
@@ -659,6 +667,7 @@ transition(MS_D, Data, MS_A){
 // waiting for mem to finish WB
 transition(MS_A, Memory_Ack, S){
 	w_deallocateTBE; // free buffer
+	c_clearOwner; // clear owner
 	qm_popMemQueue; // remove message from queue
 }
 
@@ -666,7 +675,6 @@ transition(MS_A, Memory_Ack, S){
 transition(M, PUTM_Owner, MI_A){
 	lq_queueMemoryWBRequest; // request WB
 	pl_writeDataToDirectory; // write data to directory
-	c_clearOwner; // clear owner
 	vv_allocateTBEFromRequestNet; // allocate buffer
 	i_popIncomingRequestQueue; // remove this message from queue
 }
@@ -675,7 +683,16 @@ transition(M, PUTM_Owner, MI_A){
 transition(MI_A, Memory_Ack, I){
 	la_sendWriteBackAck; // send acknowledge that WB is done
 	w_deallocateTBE; // free buffer
+	c_clearOwner; // clear owner
 	qm_popMemQueue; // remove message from queue
+}
+
+// if new owner, then invalidate from owner, followed by invalidate from old owner (slow)
+// in transition state, remove from sharer
+transition(MI_A, PUTM_NotOwner){
+	kk_removeRequestSharer; // remove sharer from list
+	a_sendWriteBackAck; // send ack
+	i_popIncomingRequestQueue; // remove this message from queue
 }
 
 // just send PUT_Ack to requester
