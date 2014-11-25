@@ -591,7 +591,7 @@ transition(S, GETM, M){
 }
 
 // in shared, remove from sharer
-transition({S, MS_D}, {PUTS_NotLast, PUTM_NotOwner}){
+transition({S, MS_D, MS_A}, {PUTS_NotLast, PUTM_NotOwner}){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
@@ -623,7 +623,7 @@ transition(M, GETS, MS_D){
 }
 
 // in transition state, get PUTS_Last (invalidate cache)
-transition(MS_D, PUTS_Last){
+transition({MS_D, MS_A}, PUTS_Last){
 	kk_removeRequestSharer; // remove sharer from list
 	a_sendWriteBackAck; // send ack
 	i_popIncomingRequestQueue; // remove this message from queue
