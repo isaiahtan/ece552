@@ -821,11 +821,11 @@ machine(L1Cache, "MSI L1 Cache")
 
 
   // Stalls
-  transition(IS_D, {Load, Store, Inv, Replacement}) {
+  transition(IS_D, {Load, Ifetch, Store, Inv, Replacement}) {
     z_stall;
   }
 
-  transition({IM_AD, IM_A}, {Load, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
+  transition({IM_AD, IM_A}, {Load, Ifetch, Store, Replacement, Fwd_GetS, Fwd_GetM}) {
     z_stall;
   }
 
@@ -833,7 +833,7 @@ machine(L1Cache, "MSI L1 Cache")
     z_stall;
   }
 
-  transition({MI_A, SI_A, II_A}, {Load, Store, Replacement}) {
+  transition({MI_A, SI_A, II_A}, {Load, Ifetch, Store, Replacement}) {
     z_stall;
   }
 
