@@ -684,28 +684,47 @@ machine(L1Cache, "MSI L1 Cache")
 
   transition(S, Store, SM_AD){
     // send GetM to Dir
+    am_issueGetM;
+    v_allocateTBE;
+    x_copyDataFromCacheToTBE;
+    p_profileMiss;
+    m_popMandatoryQueue;
   }
 
   transition(S, Replacement, SI_A) {
     // Send putS to Dir
-
+    bs_issuePUTS;
+    v_allocateTBE;
+    x_copyDataFromCacheToTBE;
+    
   }
 
   transition(S, Inv, I) {
     // Send inv-ack to Req
+    h_deallocateL1CacheBlock;
+    forward_eviction_to_cpu;
+    fi_sendInvAck;
+    o_popForwardedRequestQueue;
   }
 
 
   transition(SM_AD, Inv, IM_AD) {
     // Send inv-ack to req
+    fi_sendInvAck;
+    o_popForwardedRequestQueue;
   }
 
   transition(SM_AD, {Data_from_Dir_No_Acks, Data_from_Owner}, M) {
-
+    u_writeDataToCache;
+    sx_store_hit;
+    w_deallocateTBE;
+    n_popResponseQueue;
   }
 
   transition(SM_AD, Data_from_Dir_Ack_Cnt, SM_A) {
-
+    q_updateAckCount;
+    u_writeDataToCache;
+    n_popResponseQueue;
   }
 
   transition(SM_AD, Inv_Ack) {
